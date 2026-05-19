@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCP – Portail Consulaire du Bénin | Diaspora Kuwait</title>
+    <meta name="description" content="Portail Consulaire du Bénin – Plateforme numérique officielle pour l'assistance, l'inscription et la gestion des ressortissants béninois au Koweït et dans les pays du Golfe.">
+    <meta name="author" content="Djossou Amavi David">
+    <meta name="theme-color" content="#008751">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='33.33' fill='%23008751'/%3E%3Crect y='33.33' width='100' height='33.33' fill='%23FCD116'/%3E%3Crect y='66.66' width='100' height='33.34' fill='%23E11B22'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="https://maps.googleapis.com/maps/api/js?key=&callback=initDummyGoogle"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        *{font-family:'Inter',sans-serif;scroll-behavior:smooth}
+        ::-webkit-scrollbar{width:8px}
+        ::-webkit-scrollbar-track{background:#f1f1f1}
+        ::-webkit-scrollbar-thumb{background:#008751;border-radius:4px}
+        ::-webkit-scrollbar-thumb:hover{background:#006b3f}
+        .loading-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#008751,#004a2d);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s,visibility .8s}
+        .loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+        .spinner{width:80px;height:80px;border:8px solid rgba(255,255,255,.1);border-top-color:#FCD116;border-radius:50%;animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .flag-bar{display:flex;width:300px;height:6px;border-radius:3px;overflow:hidden;margin-top:20px}
+        .flag-bar span{flex:1}
+        .nav-blur{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+        .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15)}
+        .card-hover{transition:all .4s cubic-bezier(.4,0,.2,1)}
+        .card-hover:hover{transform:translateY(-6px);box-shadow:0 20px 40px -12px rgba(0,0,0,.25)}
+        .pulse-dot{width:12px;height:12px;background:#22c55e;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
+        @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+        .btn-primary{background:linear-gradient(135deg,#008751,#006b3f);color:#fff;padding:12px 28px;border-radius:12px;font-weight:600;transition:all .3s;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,135,81,.35)}
+        .btn-danger{background:linear-gradient(135deg,#E11B22,#b0151b);color:#fff;padding:12px 28px;border-radius:12px;font-weight:600;transition:all .3s;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+        .btn-danger:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(225,27,34,.35)}
+        .btn-outline{background:transparent;border:2px solid #008751;color:#008751;padding:10px 24px;border-radius:12px;font-weight:600;transition:all .3s;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+        .btn-outline:hover{background:#008751;color:#fff}
+        .input-field{width:100%;padding:12px 16px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;transition:all .3s;background:#fff}
+        .input-field:focus{border-color:#008751;outline:none;box-shadow:0 0 0 4px rgba(0,135,81,.15)}
+        .input-field.error{border-color:#E11B22}
+        .modal-overlay{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+        .modal-overlay.active{display:flex}
+        .modal-content{background:#fff;border-radius:24px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;padding:0;box-shadow:0 40px 80px rgba(0,0,0,.3);animation:modalIn .3s ease}
+        @keyframes modalIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+        .modal-header{padding:24px 28px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#008751,#006b3f);color:#fff;border-radius:24px 24px 0 0}
+        .modal-body{padding:28px}
+        .tab-btn{padding:12px 24px;border:none;background:transparent;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .3s;color:#6b7280;font-size:14px}
+        .tab-btn.active{color:#008751;border-bottom-color:#008751}
+        .tab-pane{display:none}
+        .tab-pane.active{display:block;animation:fadeIn .3s}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .stat-card{background:#fff;border-radius:16px;padding:24px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.06);transition:all .3s}
+        .stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.1)}
+        .chat-msg{padding:12px 16px;border-radius:16px;margin-bottom:8px;max-width:80%;animation:fadeIn .3s}
+        .chat-msg.bot{background:#f3f4f6;border-bottom-left-radius:4px}
+        .chat-msg.user{background:#008751;color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+        #map{height:300px;border-radius:16px;z-index:1}
+        .video-box{width:100%;max-width:400px;border-radius:16px;overflow:hidden;background:#000;position:relative}
+        .video-box video{width:100%;display:block}
+        .fingerprint-scanner{width:200px;height:200px;border:3px dashed #008751;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;background:#f0fdf4;transition:all .3s;cursor:pointer}
+        .fingerprint-scanner.scanning{border-color:#E11B22;background:#fef2f2;animation:scanPulse 1s infinite}
+        @keyframes scanPulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+        .evidence-item{padding:16px;background:#f9fafb;border-radius:12px;border-left:4px solid #008751;margin-bottom:12px}
+        .badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+        .badge-green{background:#dcfce7;color:#166534}
+        .badge-red{background:#fee2e2;color:#991b1b}
+        .badge-yellow{background:#fef9c3;color:#854d0e}
+        .badge-blue{background:#dbeafe;color:#1e40af}
+        .sos-btn{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#E11B22,#b0151b);color:#fff;font-size:16px;font-weight:700;border:4px solid #fff;box-shadow:0 0 0 4px #E11B22,0 8px 32px rgba(225,27,34,.4);cursor:pointer;transition:all .3s;animation:sosPulse 2s infinite;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}
+        .sos-btn:hover{transform:scale(1.1)}
+        .sos-btn.silent{animation:none;background:linear-gradient(135deg,#6b7280,#4b5563);box-shadow:0 0 0 4px #6b7280,0 8px 32px rgba(0,0,0,.2)}
+        @keyframes sosPulse{0%{box-shadow:0 0 0 0 rgba(225,27,34,.7),0 8px 32px rgba(225,27,34,.4)}70%{box-shadow:0 0 0 20px rgba(225,27,34,0),0 8px 32px rgba(225,27,34,.4)}100%{box-shadow:0 0 0 0 rgba(225,27,34,0),0 8px 32px rgba(225,27,34,.4)}}
+        .translator-bubble{position:fixed;bottom:100px;right:20px;z-index:999;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#008751,#FCD116);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:all .3s}
+        .translator-bubble:hover{transform:scale(1.1)}
+        .toast{position:fixed;bottom:30px;right:30px;z-index:99999;padding:16px 24px;border-radius:12px;color:#fff;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.2);transform:translateY(100px);opacity:0;transition:all .4s;max-width:400px}
+        .toast.show{transform:translateY(0);opacity:1}
+        .toast.success{background:#008751}
+        .toast.error{background:#E11B22}
+        .toast.info{background:#1e40af}
+        @media(max-width:768px){.modal-content{margin:10px;max-height:95vh}.modal-header{padding:16px 20px}.modal-body{padding:16px 20px}.sos-btn{width:80px;height:80px;font-size:14px}}
+        .timeline-item{position:relative;padding-left:32px;padding-bottom:32px;border-left:3px solid #008751}
+        .timeline-item:last-child{border-left-color:transparent;padding-bottom:0}
+        .timeline-item::before{content:'';position:absolute;left:-9px;top:4px;width:15px;height:15px;border-radius:50%;background:#008751;border:3px solid #fff;box-shadow:0 0 0 2px #008751}
+        .idiaspora-btn{cursor:pointer}
+        .map-marker-popup{text-align:center}
+        .map-marker-popup h3{color:#008751;font-weight:700;margin-bottom:4px}
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased">
+
+<!-- LOADING SCREEN -->
+<div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <div class="flag-bar mt-6"><span class="bg-[#008751]"></span><span class="bg-[#FCD116]"></span><span class="bg-[#E11B22]"></span></div>
+    <p class="text-white/80 mt-6 text-lg font-medium tracking-wide">Portail Consulaire du Bénin</p>
+    <p class="text-white/50 text-sm mt-2">Chargement des services consulaires...</p>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white/80 nav-blur border-b border-gray-200/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+                <div class="flex gap-0.5">
+                    <span class="w-2 h-6 bg-[#008751] rounded-sm"></span>
+                    <span class="w-2 h-6 bg-[#FCD116] rounded-sm"></span>
+                    <span class="w-2 h-6 bg-[#E11B22] rounded-sm"></span>
+                </div>
+                <span class="font-bold text-lg">BCP</span>
+                <span class="hidden sm:inline text-sm text-gray-500">| Portail Consulaire</span>
+            </div>
+            <div class="hidden md:flex items-center gap-6 text-sm font-medium">
+                <a href="#accueil" class="text-gray-700 hover:text-[#008751] transition-colors">Accueil</a>
+                <a href="#services" class="text-gray-700 hover:text-[#008751] transition-colors">Services</a>
+                <a href="#inscription" class="text-gray-700 hover:text-[#008751] transition-colors">Inscription</a>
+                <a href="#bouclier" class="text-gray-700 hover:text-[#008751] transition-colors">Bouclier Diaspora</a>
+                <a href="#urgence" class="text-gray-700 hover:text-[#008751] transition-colors">Urgence</a>
+                <a href="#dashboard" class="text-gray-700 hover:text-[#008751] transition-colors">Ambassade</a>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openModal('connexion')" class="btn-outline text-sm py-2 px-4">Connexion</button>
+                <button onclick="openModal('inscription')" class="btn-primary text-sm py-2 px-4">S'inscrire</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section id="accueil" class="pt-24 pb-16 md:pt-32 md:pb-24 relative overflow-hidden bg-gradient-to-br from-[#008751]/5 via-white to-[#FCD116]/5">
+    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-[#008751]/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-[#FCD116]/10 rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="pulse-dot"></span>
+                    <span class="text-sm font-medium text-green-700">Plateforme Officielle · République du Bénin</span>
+                </div>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight">
+                    Portail Consulaire<br>
+                    <span class="text-[#008751]">du Bénin</span>
+                </h1>
+                <p class="text-lg text-gray-600 mt-6 max-w-xl leading-relaxed">
+                    Plateforme numérique intégrée dédiée aux ressortissants béninois au Koweït et dans les pays du Golfe. 
+                    Inscription biométrique, protection consulaire, assistance médicale et services visa.
+                </p>
+                <div class="flex flex-wrap gap-4 mt-8">
+                    <button onclick="openModal('inscription')" class="btn-primary text-base">Créer mon compte consulaire</button>
+                    <button onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})" class="btn-outline text-base">Découvrir les services</button>
+                </div>
+                <div class="flex items-center gap-6 mt-8 text-sm text-gray-500">
+                    <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Biometric认证</span>
+                    <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg> Chiffré</span>
+                    <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg> GPS temps réel</span>
+                </div>
+            </div>
+            <div class="hidden md:flex justify-center">
+                <div class="relative">
+                    <div class="w-72 h-72 rounded-full bg-gradient-to-br from-[#008751] to-[#004a2d] flex items-center justify-center shadow-2xl">
+                        <div class="text-center text-white">
+                            <div class="text-7xl font-black mb-2">BCP</div>
+                            <div class="text-sm font-medium opacity-80">République du Bénin</div>
+                        </div>
+                    </div>
+                    <div class="absolute -bottom-4 -right-4 bg-white rounded-2xl p-4 shadow-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-[#008751]/10 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </div>
+                            <div><p class="font-bold text-sm">2 450+</p><p class="text-xs text-gray-500">Ressortissants</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- STATS BAND -->
+<section class="py-8 bg-white border-y border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="stat-card"><div class="text-3xl font-black text-[#008751]" id="statRessortissants">2 450+</div><p class="text-sm text-gray-500 mt-1">Ressortissants enregistrés</p></div>
+            <div class="stat-card"><div class="text-3xl font-black text-[#008751]" id="statVisas">1 280+</div><p class="text-sm text-gray-500 mt-1">Visas traités</p></div>
+            <div class="stat-card"><div class="text-3xl font-black text-[#008751]" id="statUrgences">156</div><p class="text-sm text-gray-500 mt-1">Urgences gérées</p></div>
+            <div class="stat-card"><div class="text-3xl font-black text-[#008751]" id="statProtection">99.7%</div><p class="text-sm text-gray-500 mt-1">Taux de satisfaction</p></div>
+        </div>
+    </div>
+</section>
+
+<!-- SERVICES MODULES -->
+<section id="services" class="py-20 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Services Consulaires</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Modules de <span class="text-[#008751]">protection</span> et <span class="text-[#008751]">assistance</span></h2>
+            <p class="text-gray-500 mt-4 max-w-2xl mx-auto">Huit modules intégrés couvrant l'ensemble des besoins consulaires des Béninois dans le Golfe.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Module 1: Inscription -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#008751]/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Inscription Biométrique</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Capture GPS, reconnaissance faciale, empreinte digitale, profil médical obligatoire.</p>
+                <button onclick="openModal('inscription')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">S'inscrire →</button>
+            </div>
+            <!-- Module 2: Visa -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#FCD116]/20 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#E11B22]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Visa & Immigration</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Tourisme, affaires, travail, étudiant, transit, visa diplomatique.</p>
+                <button onclick="openModal('visa')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Voir les visas →</button>
+            </div>
+            <!-- Module 3: Bouclier Diaspora -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover relative overflow-hidden">
+                <div class="absolute top-2 right-2 bg-[#E11B22] text-white text-xs font-bold px-2 py-0.5 rounded-full">NOUVEAU</div>
+                <div class="w-12 h-12 rounded-xl bg-[#E11B22]/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#E11B22]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Bouclier Diaspora</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">SOS silencieux, preuves chiffrées, appel audio/vidéo, traduction, coffre-fort numérique.</p>
+                <button onclick="document.getElementById('bouclier').scrollIntoView({behavior:'smooth'})" class="mt-4 text-sm font-semibold text-[#E11B22] hover:underline">Activer →</button>
+            </div>
+            <!-- Module 4: Medical -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#008751]/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Assistance Médicale</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Profil médical, hôpitaux partenaires, évacuation sanitaire, téléconsultation.</p>
+                <button onclick="openModal('medical')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Voir →</button>
+            </div>
+            <!-- Module 5: Violence -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#E11B22]/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#E11B22]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Violences & Abus</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Signalement anonyme, preuves protégées, accompagnement juridique et psychologique.</p>
+                <button onclick="openModal('violence')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Signaler →</button>
+            </div>
+            <!-- Module 6: Rendez-vous -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#FCD116]/20 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#E11B22]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Rendez-vous Consulaires</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Prise de rendez-vous en ligne, rappels SMS/email, historique des visites.</p>
+                <button onclick="openModal('rendezvous')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Prendre RDV →</button>
+            </div>
+            <!-- Module 7: Employeur -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#008751]/10 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Vérification Employeur</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Vérification des employeurs, dépôt de plainte, historique des litiges.</p>
+                <button onclick="openModal('employeur')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Vérifier →</button>
+            </div>
+            <!-- Module 8: Carte Consulaire -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 card-hover">
+                <div class="w-12 h-12 rounded-xl bg-[#FCD116]/20 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-[#E11B22]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
+                </div>
+                <h3 class="font-bold text-lg mb-2">Carte Consulaire</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Carte consulaire numérique avec QR code, vérifiable par les autorités.</p>
+                <button onclick="openModal('carte')" class="mt-4 text-sm font-semibold text-[#008751] hover:underline">Obtenir →</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ARCHITECTURE SECTION -->
+<section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Architecture</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Comment <span class="text-[#008751]">ça marche</span></h2>
+        </div>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="text-center p-6"><div class="w-16 h-16 mx-auto rounded-full bg-[#008751] text-white flex items-center justify-center text-2xl font-bold mb-4">1</div><h3 class="font-bold">Inscription</h3><p class="text-sm text-gray-500 mt-2">Capte GPS, biométrie faciale + empreinte, vérification passeport</p></div>
+            <div class="text-center p-6"><div class="w-16 h-16 mx-auto rounded-full bg-[#FCD116] text-gray-900 flex items-center justify-center text-2xl font-bold mb-4">2</div><h3 class="font-bold">Validation</h3><p class="text-sm text-gray-500 mt-2">Double vérification biométrique, validation par l'ambassade</p></div>
+            <div class="text-center p-6"><div class="w-16 h-16 mx-auto rounded-full bg-[#E11B22] text-white flex items-center justify-center text-2xl font-bold mb-4">3</div><h3 class="font-bold">Protection</h3><p class="text-sm text-gray-500 mt-2">Bouclier Diaspora activé, SOS, preuves chiffrées, localisation</p></div>
+            <div class="text-center p-6"><div class="w-16 h-16 mx-auto rounded-full bg-[#008751] text-white flex items-center justify-center text-2xl font-bold mb-4">4</div><h3 class="font-bold">Suivi</h3><p class="text-sm text-gray-500 mt-2">Dashboard ambassade, alertes, statistiques temps réel</p></div>
+        </div>
+    </div>
+</section>
+
+<!-- INSCRIPTION SECTION (Full Registration Module) -->
+<section id="inscription" class="py-20 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Étape 1</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Inscription <span class="text-[#008751]">Consulaire</span></h2>
+            <p class="text-gray-500 mt-3">Le processus complet d'inscription avec vérification biométrique</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <!-- Step Progress -->
+            <div class="flex justify-between mb-8">
+                <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-[#008751] text-white flex items-center justify-center text-sm font-bold" id="step1">1</div><span class="text-sm font-medium text-[#008751]" id="stepLabel1">Infos</span></div>
+                <div class="flex-1 border-t-2 border-gray-200 mt-4 mx-2"></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold" id="step2">2</div><span class="text-sm font-medium text-gray-400" id="stepLabel2">GPS</span></div>
+                <div class="flex-1 border-t-2 border-gray-200 mt-4 mx-2"></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold" id="step3">3</div><span class="text-sm font-medium text-gray-400" id="stepLabel3">Visage</span></div>
+                <div class="flex-1 border-t-2 border-gray-200 mt-4 mx-2"></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold" id="step4">4</div><span class="text-sm font-medium text-gray-400" id="stepLabel4">Empreinte</span></div>
+            </div>
+
+            <!-- Step Content -->
+            <div id="regStep1" class="reg-step">
+                <h3 class="font-bold text-xl mb-6">Informations personnelles</h3>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom complet</label><input type="text" id="regNom" class="input-field" placeholder="Ex: KOFFI Amadou"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Numéro de passeport</label><input type="text" id="regPasseport" class="input-field" placeholder="Ex: BP0123456">
+                        <button onclick="verifierPasseport()" class="text-xs text-[#008751] font-medium mt-1 hover:underline">Vérifier auprès du serveur d'État</button>
+                        <div id="passeportStatus" class="text-xs mt-1"></div>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="regEmail" class="input-field" placeholder="exemple@email.com"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label><input type="tel" id="regTel" class="input-field" placeholder="+965 XXXX XXXX"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Date de naissance</label><input type="date" id="regDateNaiss" class="input-field"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Pays de résidence</label>
+                        <select id="regPays" class="input-field"><option value="">Sélectionner...</option><option>Koweït</option><option>Arabie Saoudite</option><option>Qatar</option><option>Émirats Arabes Unis</option><option>Bahreïn</option><option>Oman</option></select>
+                    </div>
+                    <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700 mb-1">Adresse au Koweït / Golfe</label><input type="text" id="regAdresse" class="input-field" placeholder="Ville, zone, bâtiment"></div>
+                </div>
+                <div class="mt-6 flex justify-end"><button onclick="nextRegStep(2)" class="btn-primary">Suivant → GPS</button></div>
+            </div>
+
+            <div id="regStep2" class="reg-step" style="display:none">
+                <h3 class="font-bold text-xl mb-2">Localisation GPS</h3>
+                <p class="text-gray-500 text-sm mb-4">Votre position géographique est requise pour l'assistance consulaire d'urgence.</p>
+                <div id="registrationMap" style="height:300px;border-radius:12px;border:2px solid #e5e7eb"></div>
+                <div id="gpsCoords" class="mt-3 text-sm text-gray-500 text-center"></div>
+                <div class="mt-6 flex justify-between">
+                    <button onclick="prevRegStep(1)" class="btn-outline">← Retour</button>
+                    <button onclick="nextRegStep(3)" class="btn-primary">Suivant → Reconnaissance faciale</button>
+                </div>
+            </div>
+
+            <div id="regStep3" class="reg-step" style="display:none">
+                <h3 class="font-bold text-xl mb-2">Reconnaissance faciale</h3>
+                <p class="text-gray-500 text-sm mb-4">Placez votre visage face à la caméra comme pour un contrôle aéroportuaire.</p>
+                <div class="flex flex-col items-center gap-4">
+                    <div class="video-box">
+                        <video id="faceVideo" autoplay muted playsinline style="width:100%"></video>
+                        <canvas id="faceCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+                    </div>
+                    <div id="faceStatus" class="text-sm font-medium text-gray-500">📷 Activez votre caméra</div>
+                    <div class="flex gap-3">
+                        <button onclick="startFaceRecognition()" class="btn-primary">Lancer la reconnaissance</button>
+                        <button onclick="captureFace()" class="btn-outline">Capturer</button>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-between">
+                    <button onclick="prevRegStep(2)" class="btn-outline">← Retour</button>
+                    <button onclick="nextRegStep(4)" class="btn-primary">Suivant → Empreinte</button>
+                </div>
+            </div>
+
+            <div id="regStep4" class="reg-step" style="display:none">
+                <h3 class="font-bold text-xl mb-2">Empreinte digitale</h3>
+                <p class="text-gray-500 text-sm mb-4">Placez votre doigt sur le capteur pour la vérification biométrique.</p>
+                <div class="fingerprint-scanner" id="fingerprintScanner" onclick="scanFingerprint()">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto text-[#008751]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c0-2-.5-3-2-3S8 9 8 11m4 0c0 2 .5 3 2 3s2-1 2-3m-4 0v3m0-3c0-1.5.5-2 2-2s2 .5 2 2m-8 0c0-1.5-.5-2-2-2s-2 .5-2 2m12 0c0 1.5.5 2 2 2s2-.5 2-2M3 11c0 3 1.5 5 4 6m14-6c0-3-1.5-5-4-6"/></svg>
+                        <p class="text-sm font-medium text-[#008751]" id="fingerprintText">Touchez pour scanner</p>
+                    </div>
+                </div>
+                <div id="fingerprintResult" class="text-center text-sm mt-4"></div>
+                <div class="mt-6 flex justify-between">
+                    <button onclick="prevRegStep(3)" class="btn-outline">← Retour</button>
+                    <button onclick="validerInscription()" class="btn-primary" id="btnValiderInscription">✅ Valider mon inscription</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- BOUCLIER DIASPORA SECTION -->
+<section id="bouclier" class="py-20 relative overflow-hidden" style="background:linear-gradient(135deg,#0a1628,#1a2a4a)">
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute top-10 left-10 w-40 h-40 bg-[#008751]/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 right-10 w-60 h-60 bg-[#E11B22]/10 rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="text-center mb-14">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white text-sm font-medium mb-4">
+                <svg class="w-4 h-4 text-[#FCD116]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Protection Maximale
+            </div>
+            <h2 class="text-3xl md:text-5xl font-extrabold text-white">Bouclier <span class="text-[#FCD116]">Diaspora</span></h2>
+            <p class="text-gray-400 mt-4 max-w-2xl mx-auto">Système intégré de protection, d'alerte et d'assistance pour les Béninois à l'étranger.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- SOS Button Card -->
+            <div class="glass rounded-2xl p-6 text-center card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">🆘 Alerte SOS</h3>
+                <div class="flex justify-center gap-4 mb-4">
+                    <button onclick="declencherSOS(false)" class="sos-btn"><span>SOS</span><span class="text-[10px]">URGENCE</span></button>
+                    <button onclick="declencherSOS(true)" class="sos-btn silent"><span>SOS</span><span class="text-[10px]">SILENCIEUX</span></button>
+                </div>
+                <p class="text-gray-400 text-sm">Bouton rouge = alerte complète avec son. Bouton gris = alerte silencieuse (sans vibration, sans son).</p>
+                <div id="sosStatus" class="mt-3 text-sm text-gray-400"></div>
+            </div>
+
+            <!-- Evidence Recording -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">📹 Preuves Multimedia</h3>
+                <div class="flex gap-2 mb-3 flex-wrap">
+                    <button onclick="startRecording('video')" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition">🎥 Vidéo</button>
+                    <button onclick="startRecording('audio')" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition">🎤 Audio</button>
+                    <button onclick="startRecording('photo')" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition">📸 Photo</button>
+                </div>
+                <div id="recordingStatus" class="text-sm text-gray-400 mb-3">Prêt à enregistrer</div>
+                <div id="evidenceList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+            </div>
+
+            <!-- Emergency Call -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">📞 Appel d'Urgence</h3>
+                <div class="flex gap-3 mb-4">
+                    <button onclick="appelUrgence('audio')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl transition text-sm font-medium">🎧 Audio</button>
+                    <button onclick="appelUrgence('video')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl transition text-sm font-medium">📹 Vidéo</button>
+                </div>
+                <div id="callStatus" class="text-sm text-gray-400 text-center">Ligne directe avec l'ambassade</div>
+                <div class="mt-3 text-center text-xs text-gray-500">Ambassade du Bénin, Koweït</div>
+            </div>
+
+            <!-- Translation -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">🌐 Traducteur Arabe ↔ Français</h3>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="translationInput" class="flex-1 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 text-sm placeholder:text-gray-500" placeholder="Texte à traduire...">
+                    <button onclick="traduire()" class="bg-[#008751] text-white px-4 rounded-lg text-sm font-medium hover:bg-[#006b3f]">↔</button>
+                </div>
+                <div id="translationOutput" class="text-white/80 text-sm min-h-[40px] bg-white/5 rounded-lg p-3" dir="auto">Traduction apparaîtra ici</div>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="setTranslationLang('ar')" class="text-xs bg-white/10 text-white px-2 py-1 rounded">العربية</button>
+                    <button onclick="setTranslationLang('fr')" class="text-xs bg-white/10 text-white px-2 py-1 rounded">Français</button>
+                </div>
+            </div>
+
+            <!-- Digital Safe -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">🔐 Coffre-fort Numérique</h3>
+                <p class="text-gray-400 text-sm mb-3">Documents sensibles chiffrés de bout en bout.</p>
+                <button onclick="ouvrirCoffre()" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-sm w-full transition">📁 Accéder au coffre</button>
+                <div id="coffreStatus" class="mt-2 text-sm text-gray-400"></div>
+                <div id="coffreContent" class="mt-2 text-xs text-gray-500 max-h-24 overflow-y-auto"></div>
+            </div>
+
+            <!-- Employer Verification -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-white font-bold text-lg mb-4">🏢 Vérification Employeur</h3>
+                <input type="text" id="employeurName" class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 text-sm mb-2 placeholder:text-gray-500" placeholder="Nom de l'entreprise">
+                <button onclick="verifierEmployeur()" class="bg-[#FCD116] text-gray-900 px-4 py-2 rounded-lg text-sm font-bold w-full">🔍 Vérifier</button>
+                <div id="employeurResult" class="mt-2 text-sm text-gray-400"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="mt-10 glass rounded-2xl p-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div><div class="text-2xl font-bold text-white" id="dashAlerts">0</div><p class="text-gray-400 text-xs">Alertes actives</p></div>
+                <div><div class="text-2xl font-bold text-[#FCD116]" id="dashProtected">0</div><p class="text-gray-400 text-xs">Sous protection</p></div>
+                <div><div class="text-2xl font-bold text-white" id="dashEvidence">0</div><p class="text-gray-400 text-xs">Preuves stockées</p></div>
+                <div><div class="text-2xl font-bold text-[#22c55e]" id="dashOnline">0</div><p class="text-gray-400 text-xs">Connectés</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- URGENCE MAP SECTION -->
+<section id="urgence" class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+            <span class="text-sm font-semibold text-[#E11B22] uppercase tracking-widest">Urgence</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Ambassade & <span class="text-[#E11B22]">Zones de sécurité</span></h2>
+            <p class="text-gray-500 mt-3">Localisation de l'ambassade et des hôpitaux partenaires à proximité.</p>
+        </div>
+        <div id="mainMap" style="height:400px;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.1)"></div>
+        <div class="grid md:grid-cols-3 gap-4 mt-6">
+            <div class="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#E11B22]/10 flex items-center justify-center flex-shrink-0">🏛️</div>
+                <div><p class="font-bold text-sm">Ambassade du Bénin</p><p class="text-xs text-gray-500">Koweït City</p></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#008751]/10 flex items-center justify-center flex-shrink-0">🏥</div>
+                <div><p class="font-bold text-sm">Hôpital Al-Sabah</p><p class="text-xs text-gray-500">Partenaire agréé</p></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#FCD116]/20 flex items-center justify-center flex-shrink-0">📞</div>
+                <div><p class="font-bold text-sm">Urgence 24/7</p><p class="text-xs text-gray-500">+90 539 585 69 77</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- DASHBOARD SECTION -->
+<section id="dashboard" class="py-20 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Administration</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Dashboard <span class="text-[#008751]">Ambassade</span></h2>
+            <p class="text-gray-500 mt-3">Tableau de bord en temps réel pour le suivi des ressortissants.</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-lg mb-4">🟢 Ressortissants connectés</h3>
+                <div id="citizensList" class="space-y-3 max-h-60 overflow-y-auto">
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><div class="w-8 h-8 rounded-full bg-[#008751] text-white flex items-center justify-center text-xs font-bold">AK</div><div><p class="font-medium text-sm">Amadou KOFFI</p><p class="text-xs text-gray-500">Koweït · Dernière connexion: il y a 2 min</p></div><span class="ml-auto"><span class="pulse-dot"></span></span></div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><div class="w-8 h-8 rounded-full bg-[#FCD116] text-gray-900 flex items-center justify-center text-xs font-bold">MB</div><div><p class="font-medium text-sm">Mariam BAKARI</p><p class="text-xs text-gray-500">Qatar · Dernière connexion: il y a 15 min</p></div><span class="ml-auto"><span class="pulse-dot"></span></span></div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><div class="w-8 h-8 rounded-full bg-[#E11B22] text-white flex items-center justify-center text-xs font-bold">JD</div><div><p class="font-medium text-sm">Jean DOSSOU</p><p class="text-xs text-gray-500">Koweït · Dernière connexion: il y a 1h</p></div><span class="ml-auto"><span class="bg-gray-300 w-2 h-2 rounded-full inline-block"></span></span></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-lg mb-4">📊 Statistiques temps réel</h3>
+                <div class="space-y-4">
+                    <div><div class="flex justify-between text-sm mb-1"><span>Inscriptions du jour</span><span class="font-bold" id="statInscritsJour">12</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-[#008751] h-2 rounded-full" style="width:60%"></div></div></div>
+                    <div><div class="flex justify-between text-sm mb-1"><span>Visas en traitement</span><span class="font-bold" id="statVisasJour">8</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-[#FCD116] h-2 rounded-full" style="width:40%"></div></div></div>
+                    <div><div class="flex justify-between text-sm mb-1"><span>Alertes actives</span><span class="font-bold text-[#E11B22]" id="statAlertes">2</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-[#E11B22] h-2 rounded-full" style="width:15%"></div></div></div>
+                </div>
+            </div>
+        </div>
+        <!-- RDV List -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 class="font-bold text-lg mb-4">📅 Rendez-vous consulaires à venir</h3>
+            <div id="rdvList" class="space-y-3">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p class="font-medium text-sm">Koffi Amadou</p><p class="text-xs text-gray-500">Demande de passeport</p></div><span class="badge badge-blue">Demain 10h</span></div>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p class="font-medium text-sm">Mariam BAKARI</p><p class="text-xs text-gray-500">Visa tourisme</p></div><span class="badge badge-yellow">25 Mai 14h</span></div>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><p class="font-medium text-sm">Jean DOSSOU</p><p class="text-xs text-gray-500">Renouvellement carte consulaire</p></div><span class="badge badge-green">28 Mai 09h</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- BUDGET SECTION -->
+<section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Financement</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Budget du <span class="text-[#008751]">Projet Pilote</span></h2>
+            <p class="text-gray-500 mt-3">Investissement initial et coûts récurrents pour le déploiement au Koweït.</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="bg-gray-50 rounded-2xl p-8">
+                <h3 class="font-bold text-xl mb-6">🚀 Investissement Initial (MVP)</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center"><span>Développement Plateforme</span><span class="font-bold">€8,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Kits Biométriques (5)</span><span class="font-bold">€3,500</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Sécurité & Chiffrement</span><span class="font-bold">€2,500</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Déploiement Cloud (1 an)</span><span class="font-bold">€2,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Formation & Documentation</span><span class="font-bold">€2,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center text-lg font-bold text-[#008751] border-t-2 border-[#008751] pt-4"><span>Total MVP</span><span>€18,000</span></div>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-8">
+                <h3 class="font-bold text-xl mb-6">🔄 Coûts Récurrents (Annuels)</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center"><span>Hébergement Cloud</span><span class="font-bold">€4,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Maintenance & Mises à jour</span><span class="font-bold">€3,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Sécurité & Audit</span><span class="font-bold">€2,500</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center"><span>Support 24/7</span><span class="font-bold">€2,000</span></div><div class="border-t border-gray-200"></div>
+                    <div class="flex justify-between items-center text-lg font-bold text-[#008751] border-t-2 border-[#008751] pt-4"><span>Total Annuel</span><span>€11,500</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TIMELINE SECTION -->
+<section class="py-20 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <span class="text-sm font-semibold text-[#008751] uppercase tracking-widest">Planification</span>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2">Calendrier de <span class="text-[#008751]">Déploiement</span></h2>
+        </div>
+        <div class="space-y-0">
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 1 : Étude & Conception</h3><p class="text-gray-500 text-sm">Semaine 1-3 · Analyse des besoins, architecture, design UI/UX</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 2 : Développement Core</h3><p class="text-gray-500 text-sm">Semaine 4-8 · Modules inscription, biométrie, base de données</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 3 : Bouclier Diaspora</h3><p class="text-gray-500 text-sm">Semaine 9-11 · SOS, preuves, chiffrement, traduction</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 4 : Intégration Services</h3><p class="text-gray-500 text-sm">Semaine 12-14 · Visa, médical, employeur, dashboard</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 5 : Sécurité & Tests</h3><p class="text-gray-500 text-sm">Semaine 15-17 · Tests d'intrusion, audit, certification</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 6 : Déploiement Pilote</h3><p class="text-gray-500 text-sm">Semaine 18-20 · Lancement Koweït, formation, support</p></div>
+            <div class="timeline-item"><h3 class="font-bold text-lg">Phase 7 : Évaluation & Extension</h3><p class="text-gray-500 text-sm">Semaine 21-24 · Retour d'expérience, extension Golfe</p></div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-gray-900 text-white py-
